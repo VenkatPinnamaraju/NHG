@@ -1,0 +1,21 @@
+trigger:
+  branches:
+    include:
+      - master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscription: 'NHG_ARM'
+  storageAccountName: 'azkiran3010'
+ 
+
+steps:
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: $(azureSubscription)
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az deployment sub create --name myDeployment --template-file bicep/main.bicep --location eastus

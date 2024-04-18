@@ -1,0 +1,72 @@
+trigger:
+  branches:
+    include:
+      - master
+
+variables:
+  azureSubscription: 'NHG_ARM'
+  storageAccountName: 'azkiran3010'
+  localFolderPath: '$(Build.SourcesDirectory)/app'
+
+stages:
+  - stage: Build
+    displayName: 'Build Stage'
+    jobs:
+      - job: Build
+        displayName: 'Build Job'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - script: echo 'Building...'
+            displayName: 'Build Step'
+
+  - stage: Test
+    displayName: 'Test Stage'
+    jobs:
+      - job: RunTests
+        displayName: 'Run Pester Tests'
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - task: PowerShell@2
+            displayName: 'Install Pester'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
+          - task: PowerShell@2
+            displayName: 'Run Pester Tests'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Invoke-Pester -Path '$(Build.SourcesDirectory)\tests\mytest.ps1'
+
+  - stage: Deploy
+    displayName: 'Deploy Stage'
+    jobs:
+      - job: Deploy
+        displayName: 'Deploy Job'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |      
+                az storage blob service-properties update \
+                  --account-name $(storageAccountName) \
+                  --static-website \
+                  --index-document index.html \
+                  --404-document 404.html           
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |      
+                az storage blob upload-batch \
+                    --account-name $(storageAccountName) \
+                    --destination '$web' \
+                    --source $(localFolderPath)
